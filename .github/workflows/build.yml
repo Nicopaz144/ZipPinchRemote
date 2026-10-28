@@ -12,6 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: macos-15
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,7 +29,10 @@ jobs:
 
       - name: Build iOS app
         working-directory: source
+        shell: bash
         run: |
+          set -o pipefail
+
           xcodebuild \
             -project ZipPinchRemote.xcodeproj \
             -scheme ZipPinchRemote \
@@ -37,18 +41,34 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
-            build
+            build 2>&1 | tee build.log
+
+          BUILD_STATUS=${PIPESTATUS[0]}
+
+          echo ""
+          echo "========== ERRORES DE COMPILACION =========="
+
+          grep -n -B 4 -A 6 "error:" build.log || true
+
+          echo ""
+          echo "========== FIN DEL REGISTRO =========="
+
+          exit "$BUILD_STATUS"
 
       - name: Package IPA
+        if: success()
         working-directory: source
         run: |
+          set -e
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/ZipPinchRemote.app Payload/
           zip -qry ZipPinchRemote.ipa Payload
 
       - name: Upload IPA
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ZipPinchRemote-IPA
           path: source/ZipPinchRemote.ipa
           if-no-files-found: error
+          retention-days: 7
