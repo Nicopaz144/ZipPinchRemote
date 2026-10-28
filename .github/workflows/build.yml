@@ -20,6 +20,20 @@ jobs:
       - name: Extract project ZIP
         run: unzip -q ZipPinchRemote-GitHub-Project.zip -d source
 
+      - name: Fix Info.plist generation
+        working-directory: source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("project.yml")
+          s = p.read_text()
+          old = "        PRODUCT_BUNDLE_IDENTIFIER: com.nico.zippinchremote\n"
+          new = old + "        GENERATE_INFOPLIST_FILE: YES\n"
+          if "GENERATE_INFOPLIST_FILE: YES" not in s:
+              assert old in s, "No se encontró la configuración esperada"
+              p.write_text(s.replace(old, new, 1))
+          PY
+        
       - name: Install XcodeGen
         run: brew install xcodegen
 
