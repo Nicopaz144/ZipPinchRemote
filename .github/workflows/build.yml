@@ -1,0 +1,54 @@
+
+name: Build ZipPinch Remote
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract project ZIP
+        run: unzip -q ZipPinchRemote-GitHub-Project.zip -d source
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: source
+        run: xcodegen generate
+
+      - name: Build iOS app
+        working-directory: source
+        run: |
+          xcodebuild \
+            -project ZipPinchRemote.xcodeproj \
+            -scheme ZipPinchRemote \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package IPA
+        working-directory: source
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/ZipPinchRemote.app Payload/
+          zip -qry ZipPinchRemote.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZipPinchRemote-IPA
+          path: source/ZipPinchRemote.ipa
+          if-no-files-found: error
